@@ -90,6 +90,10 @@ Configure `redirect` urls and `cors`:
 ![create-admin-role](./images/create-admin-role.png)
 
 
+##### Realm role list
+
+![realm-role-list](./images/realm-roles.png)
+
 #### Create users
 
 ##### Create first user
@@ -137,6 +141,59 @@ For user: `hajjimohammed`:
 For user: `fadssiamine`:
 
 ![password-auth-user2](./images/password-auth-user2.png)
+
+
+#### Access token and refresh token content
+
+##### Access token
+
+![access-token-header](./images/header-access-token-user2.png)
+
+![access-token-payload](./images/payload-access-token-user2.png)
+
+![access-token-signature](./images/signature-access-token-user2.png)
+
+
+##### Refresh token
+
+![refresh-token-content](./images/refresh-token-user2.png)
+
+
+#### Refresh token authentication
+
+![refresh-token-auth](./images/refresh-token-auth-user2.png)
+
+#### Client secret authentication
+
+##### Enable client authentication
+
+![enable-client-auth](./images/activate-client-auth.png)
+
+##### Get client secret appropriate to my-client
+
+![client-secret](./images/client-secret.png)
+
+##### Client secret auth
+
+![client-secret-auth](./images/client-secret-auth.png)
+
+
+
+### modify tokens properties
+
+modify signature algorithm from `RSA` to `EDSA`:
+
+![edsa](./images/ecdsa-sig.png)
+
+modify lifespan of access token:
+
+![access-token-lifespan](./images/access-token-lifespan.png)
+
+After modification, we got:
+
+![access-token-after-mod](./images/access-token-after-update.png)
+
+
 
 
 
