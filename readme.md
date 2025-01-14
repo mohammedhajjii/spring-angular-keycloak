@@ -608,3 +608,127 @@ In the Payload of generated JWT for `hajjimohammed` user, we can see that roles 
 
 
 ## Front-End with Angular
+
+after adding angular-keycloak and keycloak-js using:
+```shell
+npm install angular-keycloak@15 keycloak-js@20
+```
+We can easily set up our keycloak adapter:
+
+
+### Keycloak initialization
+
+```typescript
+import {APP_INITIALIZER, NgModule} from '@angular/core';
+import { BrowserModule } from '@angular/platform-browser';
+
+import { AppRoutingModule } from './app-routing.module';
+import { AppComponent } from './app.component';
+import {KeycloakService} from "keycloak-angular";
+import { ProductsComponent } from './ui/products/products.component';
+
+
+
+function initializeKeycloak(keycloak: KeycloakService) {
+  return () =>
+    keycloak.init({
+      config: {
+        url: 'http://localhost:8080',
+        realm: 'my-realm',
+        clientId: 'my-client'
+      },
+      initOptions: {
+        onLoad: 'check-sso',
+        silentCheckSsoRedirectUri:
+          window.location.origin + '/assets/silent-check-sso.html'
+      }
+    });
+}
+
+
+@NgModule({
+  declarations: [
+    AppComponent,
+    ProductsComponent,
+  ],
+  imports: [
+    BrowserModule,
+    AppRoutingModule
+  ],
+  providers: [
+    KeycloakService,
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeKeycloak,
+      multi: true,
+      deps: [KeycloakService]
+    }
+  ],
+  bootstrap: [AppComponent]
+})
+export class AppModule { }
+
+```
+
+#### silent-check-sso.html file
+
+```html
+<html>
+  <body>
+    <script>
+      parent.postMessage(location.href, location.origin);
+    </script>
+  </body>
+</html>
+
+```
+
+
+### AuthGuard
+
+```typescript
+import { Injectable } from '@angular/core';
+import {
+  ActivatedRouteSnapshot,
+  Router,
+  RouterStateSnapshot
+} from '@angular/router';
+import { KeycloakAuthGuard, KeycloakService } from 'keycloak-angular';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AuthGuard extends KeycloakAuthGuard {
+  constructor(
+    protected override readonly router: Router,
+    protected readonly keycloak: KeycloakService
+  ) {
+    super(router, keycloak);
+  }
+
+  public async isAccessAllowed(
+    route: ActivatedRouteSnapshot,
+    state: RouterStateSnapshot
+  ) {
+    // Force the user to log in if currently unauthenticated.
+    if (!this.authenticated) {
+      await this.keycloak.login({
+        redirectUri: window.location.origin + state.url
+      });
+    }
+
+    // Get the roles required from the route.
+    const requiredRoles = route.data['roles'];
+
+    // Allow the user to proceed if no additional roles are required to access the route.
+    if (!Array.isArray(requiredRoles) || requiredRoles.length === 0) {
+      return true;
+    }
+
+    // Allow the user to proceed if all the required roles are present.
+    return requiredRoles.every((role) => this.roles.includes(role));
+  }
+}
+
+```
+
