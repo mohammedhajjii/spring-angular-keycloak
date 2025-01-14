@@ -194,11 +194,306 @@ After modification, we got:
 ![access-token-after-mod](./images/access-token-after-update.png)
 
 
+## Backend: Inventory-service
+
+
+### Dependencies
+
+Dependencies used for this microservice are:
+
+- `Spring data JPa`
+- `Spring web`
+- `H2 database`
+- `oauth2 resource server`
+- `Eureka discorvery client`
+- `Config client`
+- `Lombok`
+
+
+### application.yml file
+
+```yaml
+spring:
+  application:
+    name: inventory-service
+
+  datasource:
+    url: jdbc:h2:mem:inventory-db
+
+
+  h2:
+    console:
+      enabled: true
+
+  cloud:
+    config:
+      enabled: false
+
+    discovery:
+      enabled: false
+
+
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/my-realm
+          jwk-set-uri: http://localhost:8080/realms/my-realm/protocol/openid-connect/certs
+server:
+  port: 9090
 
 
 
 
+```
 
+
+### Entities
+
+#### Product entity
+
+```java
+package md.hajji.inventoryservice.entities;
+
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import lombok.*;
+import org.hibernate.annotations.UuidGenerator;
+
+@Entity
+@Getter @Setter @AllArgsConstructor @NoArgsConstructor @Builder
+@ToString
+public class Product {
+    @Id
+    @UuidGenerator(style = UuidGenerator.Style.TIME)
+    private String id;
+    private String name;
+    private double price;
+    private int quantity;
+}
+
+```
+### Repositories
+
+#### ProductRepository
+
+```java
+package md.hajji.inventoryservice.repositories;
+
+import md.hajji.inventoryservice.entities.Product;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProductRepository extends JpaRepository<Product, String> {
+}
+
+```
+
+### Web
+
+#### ProductRestController
+
+```java
+package md.hajji.inventoryservice.web;
+
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import md.hajji.inventoryservice.exceptions.ProductNotFoundException;
+import md.hajji.inventoryservice.repositories.ProductRepository;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping(path = "/products")
+@RequiredArgsConstructor
+public class ProductRestController {
+
+
+    private final ProductRepository productRepository;
+
+
+    @GetMapping
+    public ResponseEntity<?> getAll(){
+        return ResponseEntity.ok(productRepository.findAll());
+    }
+
+    @GetMapping(path = "{id}")
+    public ResponseEntity<?> get(@PathVariable String id){
+        return ResponseEntity.ok(
+                productRepository.findById(id)
+                        .orElseThrow(() ->  new ProductNotFoundException(id))
+        );
+    }
+
+}
+
+```
+
+
+### Exceptions
+
+#### ProductNotFoundException
+
+```java
+package md.hajji.inventoryservice.exceptions;
+
+public class ProductNotFoundException extends RuntimeException {
+    public ProductNotFoundException(String id) {
+        super("Product with id " + id + " not found");
+    }
+}
+
+```
+
+#### ExceptionsHandler
+
+```java
+package md.hajji.inventoryservice.exceptions;
+
+
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+
+@ControllerAdvice
+public class ExceptionsHandler {
+
+
+
+    @ExceptionHandler({ProductNotFoundException.class})
+    public ResponseEntity<String> handleProductNotFoundException(ProductNotFoundException exception) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(exception.getMessage());
+    }
+}
+
+```
+
+### Security
+
+#### SecurityConfiguration
+
+
+
+```java
+package md.hajji.inventoryservice.security;
+
+
+import lombok.SneakyThrows;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfiguration {
+
+    @Bean
+    @SneakyThrows({Exception.class})
+    public SecurityFilterChain securityFilterChain(HttpSecurity http){
+
+        return http
+                .authorizeHttpRequests(auth -> auth.requestMatchers("/products/**").permitAll())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .build();
+
+    }
+
+
+}
+
+```
+
+At this point, we don't have any kind of security because we `permit` all request to `/products` endpoint.
+
+Later we will update this class to ensure security using `keycloak`.
+
+### Utils
+
+#### ProductFactory
+
+```java
+package md.hajji.inventoryservice.utils;
+
+import md.hajji.inventoryservice.entities.Product;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
+public class ProductFactory {
+
+    static final List<String> NAMES = List.of("Pixel 6a", "Pixel 8", "Samsung S25", "Iphone 16 pro");
+    static final List<Double> PRICE_SEEDS = List.of(3500., 4700., 4500., 8000.);
+    static final Random RANDOM = new Random();
+
+
+    public static Product randomProduct() {
+        var index = RANDOM.nextInt(PRICE_SEEDS.size());
+        return Product.builder()
+                .name(NAMES.get(index))
+                .price(RANDOM.nextDouble(PRICE_SEEDS.get(index)))
+                .quantity(RANDOM.nextInt(20))
+                .build();
+    }
+
+}
+```
+
+### First Test
+
+```java
+package md.hajji.inventoryservice;
+
+import md.hajji.inventoryservice.repositories.ProductRepository;
+import md.hajji.inventoryservice.utils.ProductFactory;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+
+import java.util.stream.Stream;
+
+@SpringBootApplication
+public class InventoryServiceApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(InventoryServiceApplication.class, args);
+    }
+
+
+    @Bean
+    CommandLineRunner start(ProductRepository productRepository) {
+        return args -> {
+            Stream.generate(ProductFactory::randomProduct)
+                    .limit(10)
+                    .forEach(productRepository::save);
+        };
+    }
+
+}
+
+```
+
+And we got the following results:
+
+![all-products-no-sec](./images/products-no-security.png)
+
+
+![product-no-sec](./images/product-1-no-security.png)
 
 
 
