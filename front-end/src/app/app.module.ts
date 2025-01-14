@@ -21,6 +21,8 @@ function initializeKeycloak(keycloak: KeycloakService) {
         silentCheckSsoRedirectUri:
           window.location.origin + '/assets/silent-check-sso.html'
       }
+    }).then(() => {
+
     });
 }
 

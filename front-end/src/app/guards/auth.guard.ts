@@ -28,6 +28,11 @@ export class AuthGuard extends KeycloakAuthGuard {
       });
     }
 
+
+    this.roles = this.keycloak
+      .getKeycloakInstance()
+      .tokenParsed?.['authorities'] || [];
+
     // Get the roles required from the route.
     const requiredRoles = route.data['roles'];
 
