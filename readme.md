@@ -496,6 +496,115 @@ And we got the following results:
 ![product-no-sec](./images/product-1-no-security.png)
 
 
+### Enable requests authentication
+
+Now we are going to enable authentication for all request to our base url: `http://localhost:9090/`.
+the changes that should we made are:
+
+- `update SecurityFilterChain bean`: by ensuring that any request should be authenticated.
+- `update application.yml file`: add properties like `authorities-claim-name` to tell JWT converter where its will find the authorities in the JWT token, and also set `authority-prefix` to `ROLE_`
+- `set claim that will contains roles`: in keyloack we need to set the claim that will include user roles, instead of having roles in `realm_access.roles` claim.
 
 
 
+#### Update SecurityFilterChain bean
+
+
+```java
+package md.hajji.inventoryservice.security;
+
+
+import lombok.SneakyThrows;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
+
+@Configuration
+@EnableWebSecurity
+public class SecurityConfiguration {
+
+    @Bean
+    @SneakyThrows({Exception.class})
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationConverter jwtAuthenticationConverter){
+
+        return http
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)
+                .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
+                .build();
+
+    }
+
+}
+
+```
+
+
+#### Update application.yml file
+
+```yaml
+spring:
+  application:
+    name: inventory-service
+
+  datasource:
+    url: jdbc:h2:mem:inventory-db
+
+
+  h2:
+    console:
+      enabled: true
+
+  cloud:
+    config:
+      enabled: false
+
+    discovery:
+      enabled: false
+
+
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/realms/my-realm
+          jwk-set-uri: http://localhost:8080/realms/my-realm/protocol/openid-connect/certs
+
+          # set authority claim, so default converter can access to it:
+          authorities-claim-name: authorities
+          # add a special prefix to parsed roles:
+          authority-prefix: ROLE_
+server:
+  port: 9090
+```
+
+#### Set claim that will contain roles
+
+![set-authorities-claims](./images/set-authorities-claim-to-authorities.png)
+
+
+In the Payload of generated JWT for `hajjimohammed` user, we can see that roles are included in `authorities` claim:
+
+![after-setting-auth-claim](./images/payload-after-setting-auth-claims.png)
+
+
+
+#### Test /products endpoint with enabled security
+
+
+![products-after-enabling-sec](./images/product-with-security.png)
+
+
+![product-one-with-security](./images/one-product-with-security.png)
+
+
+
+## Front-End with Angular

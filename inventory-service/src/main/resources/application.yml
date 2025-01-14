@@ -25,6 +25,11 @@ spring:
         jwt:
           issuer-uri: http://localhost:8080/realms/my-realm
           jwk-set-uri: http://localhost:8080/realms/my-realm/protocol/openid-connect/certs
+
+          # set authority claim, so default converter can access to it:
+          authorities-claim-name: authorities
+          # add a special prefix to parsed roles:
+          authority-prefix: ROLE_
 server:
   port: 9090
 
