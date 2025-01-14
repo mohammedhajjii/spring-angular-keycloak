@@ -44,6 +44,35 @@ networks:
     driver: bridge
 ```
 
+### Init.Ini environment file
+
+```properties
+POSTGRES_DB=keycloak_db
+POSTGRES_USER=keycloak_db_user
+POSTGRES_PASSWORD=keycloak_db_user_password
+KEYCLOAK_ADMIN=admin
+KEYCLOAK_ADMIN_PASSWORD=admin
+
+# postgres
+POSTGRES_DB=${POSTGRES_DB}
+POSTGRES_USER=${POSTGRES_USER}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+
+# kecloak
+KC_HOSTNAME=localhost
+KC_HOSTNAME_PORT=8080
+KC_HOSTNAME_STRICT_BACKCHANNEL=false
+KC_HTTP_ENABLED=true
+KC_HOSTNAME_STRICT_HTTPS=false
+KC_HEALTH_ENABLED=true
+KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+KC_DB=postgres
+KC_DB_URL=jdbc:postgresql://postgres/${POSTGRES_DB}
+KC_DB_USERNAME=${POSTGRES_USER}
+KC_DB_PASSWORD=${POSTGRES_PASSWORD}
+```
+
 ### Start keycloak
 
 ![start-keycloak](./images/start-keycloak-docker.png)
